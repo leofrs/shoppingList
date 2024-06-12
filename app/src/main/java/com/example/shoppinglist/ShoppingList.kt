@@ -42,19 +42,19 @@ import androidx.compose.ui.unit.sp
 data class ShoppingItem(
     var id: Int,
     var name: String,
-    var quantity: Byte
+    var quantity: Byte,
+    var isEditing: Boolean
 )
 
-@SuppressLint("MutableCollectionMutableState")
+
 @Composable
 fun ShoppingListApp() {
-
     var shoppingList by remember { mutableStateOf(listOf<ShoppingItem>()) }
     var showDialog by remember { mutableStateOf(false) }
     var itemName by remember { mutableStateOf("") }
     var itemQuantity by remember { mutableStateOf("") }
 
-    Column (
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = 32.dp),
@@ -62,9 +62,7 @@ fun ShoppingListApp() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { showDialog = true }
-        ) {
+        Button(onClick = { showDialog = true }) {
             Text("Add Item")
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -72,8 +70,34 @@ fun ShoppingListApp() {
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            items(shoppingList){
-                ItemList(it, {}, {})
+            items(shoppingList) { item ->
+                if (item.isEditing) {
+                    ShoppingItemEdit(item = item) { name, quantity ->
+                        shoppingList = shoppingList.map {
+                            if (it.id == item.id) {
+                                it.copy(name = name, quantity = quantity, isEditing = false)
+                            } else {
+                                it
+                            }
+                        }
+                    }
+                } else {
+                    ItemList(
+                        item = item,
+                        onDeleteClick = {
+                            shoppingList = shoppingList.filter { it.id != item.id }
+                        },
+                        onEditClick = {
+                            shoppingList = shoppingList.map {
+                                if (it.id == item.id) {
+                                    it.copy(isEditing = true)
+                                } else {
+                                    it
+                                }
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -82,29 +106,30 @@ fun ShoppingListApp() {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             confirmButton = {
-                Row (
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                   Button(
-                       onClick = {
-                           if (itemName.isNotBlank()){
-                               val newItem = ShoppingItem(
-                                   id = shoppingList.size + 1,
-                                   name = itemName,
-                                   quantity = itemQuantity.toByte()
-                               )
-                               shoppingList += newItem
-                               showDialog = false
-                               itemName = " "
-                               itemQuantity = " "
-                           }
-                       }
-                   ) {
-                       Text("Add")
-                   }
+                    Button(
+                        onClick = {
+                            if (itemName.isNotBlank()) {
+                                val newItem = ShoppingItem(
+                                    id = shoppingList.size + 1,
+                                    name = itemName,
+                                    quantity = itemQuantity.toByte(),
+                                    isEditing = false
+                                )
+                                shoppingList += newItem
+                                showDialog = false
+                                itemName = ""
+                                itemQuantity = ""
+                            }
+                        }
+                    ) {
+                        Text("Add")
+                    }
                     Button(onClick = { showDialog = false }) {
                         Text("Cancel")
                     }
@@ -115,14 +140,14 @@ fun ShoppingListApp() {
                 Column {
                     OutlinedTextField(
                         value = itemName,
-                        onValueChange = {itemName = it},
+                        onValueChange = { itemName = it },
                         singleLine = true,
                         placeholder = { Text("Insira o item") }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = itemQuantity,
-                        onValueChange = {itemQuantity = it},
+                        onValueChange = { itemQuantity = it },
                         singleLine = true,
                         placeholder = { Text("Insira a quantidade") }
                     )
@@ -130,11 +155,10 @@ fun ShoppingListApp() {
             },
         )
     }
-
 }
 
 @Composable
-fun ItemList(item: ShoppingItem, onDeleteClick:() -> Unit, onEditClick:() -> Unit) {
+fun ItemList(item: ShoppingItem, onDeleteClick: () -> Unit, onEditClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,32 +166,73 @@ fun ItemList(item: ShoppingItem, onDeleteClick:() -> Unit, onEditClick:() -> Uni
             .border(1.dp, Color.Blue, shape = RoundedCornerShape(20))
             .background(color = Color.LightGray, shape = RoundedCornerShape(20)),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Absolute.SpaceAround
-
+        horizontalArrangement = Arrangement.SpaceAround
     ) {
-            Text(
-                text = item.name,
-                style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(start = 5.dp)
-            )
-            Text(
-                text = "Quant. ${item.quantity}",
-                style = TextStyle(fontSize = 16.sp),
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { onEditClick() }) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Icone para editar um item da lista"
-                    )
-                }
-                IconButton(onClick = { onDeleteClick() }) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Icone para deletar um item da lista"
-                    )
+        Text(
+            text = item.name,
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+            modifier = Modifier.padding(start = 5.dp)
+        )
+        Text(
+            text = "Quant. ${item.quantity}",
+            style = TextStyle(fontSize = 16.sp),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onEditClick) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Icone para editar um item da lista"
+                )
+            }
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Icone para deletar um item da lista"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ShoppingItemEdit(item: ShoppingItem, onEditItem: (String, Byte) -> Unit) {
+    var nameItem by remember { mutableStateOf(item.name) }
+    var quantityItem by remember { mutableStateOf(item.quantity.toString()) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        OutlinedTextField(
+            value = nameItem,
+            onValueChange = { nameItem = it },
+            singleLine = true,
+            placeholder = { Text("Insira o item") }
+        )
+        OutlinedTextField(
+            value = quantityItem,
+            onValueChange = { quantityItem = it },
+            singleLine = true,
+            placeholder = { Text("Insira a quantidade") }
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            Button(onClick = {
+                onEditItem(nameItem, quantityItem.toByte())
+            }) {
+                Text(text = "Save")
+            }
+            Button(onClick = {
+                onEditItem(item.name, item.quantity) // Cancel edit, revert to original
+            }) {
+                Text(text = "Cancel")
             }
         }
     }
